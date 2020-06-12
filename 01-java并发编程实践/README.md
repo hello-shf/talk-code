@@ -29,3 +29,78 @@
 我们可能又会为新的问题引入别的技术来处理，这是个不断循环的过程。因此，我们在评估
 一项技术的时候，需要充分考虑其负面影响，怎么权衡利弊，实现利益最大化。
 CPU --> 三级缓存 --> MESI协议 --> 指令重排
+
+#### [02 | Java内存模型：看Java如何解决可见性和有序性问题](https://time.geekbang.org/column/article/84017)
+
+> 笔记
+
+* java内存模型
+    * JMM是JVM兼容不同的CPU架构的基础。为了屏蔽底层硬件的差异，向开发者提供统一的接口，故诞生了JMM
+    * **JMM只是规范**，**JMM只是规范**，**JMM只是规范**
+    * JVM对JMM的实现，才是常见的堆、栈、方法区等一些耳熟能详的名词
+* 可见性、有序性的根本解决方案
+    * 程序员：对CPU缓存、编译器等按需禁用缓存以及编译优化
+        * 方法：volatile/synchronized/final
+            * 以上三种方法是java提供给程序员“按需”禁止缓存及编译优化的手段。
+    * JVM：happens-before原则
+    在JVM可预见的场景中禁止CPU缓存、编译器优化
+        * 程序次序规则
+            * 在一个线程中，前面的操作总是对后面操作可见
+        * 锁定规则
+            * 一个unlock操作先行发生于后面对这个锁的lock操作（先释放，才能加锁）        
+        * 传递性规则
+            * **A happens-before B B happens-before C 则 A happens-before C** （以前理解不到位）
+            ```java
+            class VolatileExample {
+              int x = 0;
+              volatile boolean v = false;
+              public void writer() {
+                x = 42;
+                v = true;
+              }
+              public void reader() {
+                if (v == true) {
+                  // 这里x会是多少呢？
+                }
+              }
+            }
+            ```
+        * 线程start规则
+            * start前的操作，总是对被start的操作可见。它是指主线程 A 启动子线程 B 后，子线程 B 能够看到主线程在启动子线程 B 前的操作。
+            ```java
+            Thread B = new Thread(()->{
+              // 主线程调用B.start()之前
+              // 所有对共享变量的修改，此处皆可见
+              // 此例中，var==77
+            });
+            // 此处对共享变量var修改
+            var = 77;
+            // 主线程启动子线程
+            B.start();
+            ```
+        * 线程 join() 规则
+            * 这条是关于线程等待的。它是指主线程 A 等待子线程 B 完成（主线程 A 通过调用子线程 B 的 join() 方法实现），
+            当子线程 B 完成后（主线程 A 中 join() 方法返回），主线程能够看到子线程的操作。当然所谓的“看到”，指的是对共享变量的操作。
+            ```java
+            Thread B = new Thread(()->{
+              // 此处对共享变量var修改
+              var = 66;
+            });
+            // 例如此处对共享变量修改，
+            // 则这个修改结果对线程B可见
+            // 主线程启动子线程
+            B.start();
+            B.join()
+            // 子线程所有对共享变量的修改
+            // 在主线程调用B.join()之后皆可见
+            // 此例中，var==66
+            ```
+
+> 理解
+
+* 文中的禁用CPU缓存，更深层次的理解见
+    * store buffer
+    * Invalidate Queue
+* volatile/synchronized/final等是java提供给程序员禁止指令重排和禁用缓存的工具
+    * CPU为了提高利用率需要指令重排，但是在一些场景中指令重排会导致一些意想不到的错误。这时候需要程序员来发现问题并给出了解决问题的手段
+* 重点理解JMM是一种规范、不能混淆JVM对JMM的实现     
