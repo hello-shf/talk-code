@@ -239,3 +239,67 @@ CPU --> 三级缓存 --> MESI协议 --> 指令重排
 while(true)循环是不是应该有个timeout，避免一直阻塞下去？
 加超时在项目中非常实用。
 
+
+#### [06 | 用“等待-通知”机制优化循环等待](https://time.geekbang.org/column/article/85241)
+
+>笔记
+
+* 问题：05中破坏占用且等待条件，while循环会浪费CPU资源
+    ```java
+    // 一次性申请转出账户和转入账户，直到成功
+    while(!actr.apply(this, target)){...};
+    ```
+    当并发冲突增加，可能上述while循环会循环上万次，浪费CPU资源
+* 方案：等待-通知机制
+    * 05中解决占用且等待条件，其实根本原因在于所有线程都在盲目申请，而不是等到“机会”合适的时候再申请。所谓来得早不如来得巧
+    * 使用 synchronized, wait(), notify(), notifyAll()实现等待-通知机制
+        * **这个等待队列和互斥锁是一对一的关系，每个互斥锁都有自己独立的等待队列**
+        * notify() 只能保证在通知时间点，条件是满足的。而被通知线程的执行时间点和通知的时间点基本上不会重合，所以当线程执行的时候，很可能条件已经不满足了（保不齐有其他线程插队）
+```java
+//单例
+class Allocator {
+  private List<Object> als;
+  // 一次性申请所有资源
+  synchronized void apply(
+    Object from, Object to){
+    // 经典写法 范式
+    while(als.contains(from) ||
+         als.contains(to)){
+      try{
+        wait();
+      }catch(Exception e){
+      }   
+    } 
+    als.add(from);
+    als.add(to);  
+  }
+  // 归还资源
+  synchronized void free(
+    Object from, Object to){
+    als.remove(from);
+    als.remove(to);
+    notifyAll();
+  }
+}
+//测试方法
+public class Test{
+    public void test(){
+        //加锁
+        allocator.apply(from, to);
+        //TODO ...
+        //释放锁
+        allocator.free();
+    }
+}
+```
+
+> 收获
+* 尽量使用notifyAll
+    * notify() 是会随机地通知等待队列中的一个线程，而 notifyAll() 会通知等待队列中的所有线程。从感觉上来讲，应该是 notify() 更好一些，因为即便通知所有线程，也只有一个线程能够进入临界区。但那所谓的感觉往往都蕴藏着风险，实际上使用 notify() 也很有风险，它的风险在于可能导致某些线程永远不会被通知到。
+    假设我们有资源 A、B、C、D，线程 1 申请到了 AB，线程 2 申请到了 CD，此时线程 3 申请 AB，会进入等待队列（AB 分配给线程 1，线程 3 要求的条件不满足），线程 4 申请 CD 也会进入等待队列。我们再假设之后线程 1 归还了资源 AB，如果使用 notify() 来通知等待队列中的线程，有可能被通知的是线程 4，但线程 4 申请的是 CD，所以此时线程 4 还是会继续等待，而真正该唤醒的线程 3 就再也没有机会被唤醒了。所以除非经过深思熟虑，否则尽量使用 notifyAll()。
+* 每个互斥锁都有各自独立的等待池
+* wait和sleep的区别
+wait()方法与sleep()方法的不同之处在于，wait()方法会释放对象的“锁标志”。当调用某一对象的wait()方法后，会使当前线程暂停执行，并将当前线程放入对象等待池中，直到调用了notify()方法后，将从对象等待池中移出任意一个线程并放入锁标志等待池中，只有锁标志等待池中的线程可以获取锁标志，它们随时准备争夺锁的拥有权。当调用了某个对象的notifyAll()方法，会将对象等待池中的所有线程都移动到该对象的锁标志等待池。
+sleep()方法需要指定等待的时间，它可以让当前正在执行的线程在指定的时间内暂停执行，进入阻塞状态，该方法既可以让其他同优先级或者高优先级的线程得到执行的机会，也可以让低优先级的线程得到执行机会。但是sleep()方法不会释放“锁标志”，也就是说如果有synchronized同步块，其他线程仍然不能访问共享数据。
+    * wait释放锁
+    * sleep不释放锁
