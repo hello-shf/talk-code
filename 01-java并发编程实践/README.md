@@ -297,6 +297,8 @@ public class Test{
 * 尽量使用notifyAll
     * notify() 是会随机地通知等待队列中的一个线程，而 notifyAll() 会通知等待队列中的所有线程。从感觉上来讲，应该是 notify() 更好一些，因为即便通知所有线程，也只有一个线程能够进入临界区。但那所谓的感觉往往都蕴藏着风险，实际上使用 notify() 也很有风险，它的风险在于可能导致某些线程永远不会被通知到。
     假设我们有资源 A、B、C、D，线程 1 申请到了 AB，线程 2 申请到了 CD，此时线程 3 申请 AB，会进入等待队列（AB 分配给线程 1，线程 3 要求的条件不满足），线程 4 申请 CD 也会进入等待队列。我们再假设之后线程 1 归还了资源 AB，如果使用 notify() 来通知等待队列中的线程，有可能被通知的是线程 4，但线程 4 申请的是 CD，所以此时线程 4 还是会继续等待，而真正该唤醒的线程 3 就再也没有机会被唤醒了。所以除非经过深思熟虑，否则尽量使用 notifyAll()。
+![06-2](https://github.com/hello-shf/talk-code/blob/master/images/06-2.png?raw=true)
+notify工作原理图
 * 每个互斥锁都有各自独立的等待池
 ![06-1](https://github.com/hello-shf/talk-code/blob/master/images/06-1.png?raw=true)
 * wait和sleep的区别
