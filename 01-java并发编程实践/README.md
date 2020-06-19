@@ -397,3 +397,40 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
     * HASEN：执行完，再去唤醒另外一个线程。能够保证线程的执行
     * HOARE：是中断当前线程，唤醒另外一个线程，执行玩再去唤醒，也能够保证完成。
     * MESA：是进入等待队列，不一定有机会能够执行（公平竞争公平 == 容易饥饿）
+
+
+#### [09 | Java线程（上）：Java线程的生命周期](https://time.geekbang.org/column/article/86366)
+
+> 笔记
+
+* 通用的五种线程状态
+    * 初始状态
+    * 可运行状态
+    * 运行状态
+    * 休眠状态
+    * 终止状态
+* java线程的五种状态
+    * new(初始化)
+    * runnable(可运行/运行状态)
+    * blocked(阻塞状态)
+    * waiting(无限时等待)
+    * timed_waiting(有时限等待)
+    * terminated(终止)
+* RUNNABLE 与 BLOCKED 的状态转换
+    * 只有一种场景会触发这种转换，就是线程等待 synchronized 的隐式锁。synchronized 修饰的方法、代码块同一时刻只允许一个线程执行，其他线程只能等待，这种情况下，等待的线程就会从 RUNNABLE 转换到 BLOCKED 状态。而当等待的线程获得 synchronized 隐式锁时，就又会从 BLOCKED 转换到 RUNNABLE 状态
+* RUNNABLE 与 WAITING 的状态转换
+    * 第一种场景，获得 synchronized 隐式锁的线程，调用无参数的 Object.wait() 方法
+    * 第二种场景，调用无参数的 Thread.join() 方法
+    * 第三种场景，调用 LockSupport.park() 方法。其中的 LockSupport 对象，也许你有点陌生，其实 Java 并发包中的锁，都是基于它实现的
+* RUNNABLE 与 TIMED_WAITING 的状态转换
+    * 调用带超时参数的 Thread.sleep(long millis) 方法
+    * 获得 synchronized 隐式锁的线程，调用带超时参数的 Object.wait(long timeout) 方法
+    * 调用带超时参数的 Thread.join(long millis) 方法
+    * 调用带超时参数的 LockSupport.parkNanos(Object blocker, long deadline) 方法
+    * 调用带超时参数的 LockSupport.parkUntil(long deadline) 方法
+* 从 NEW 到 RUNNABLE 状态
+    * Java 刚创建出来的 Thread 对象就是 NEW 状态，而创建 Thread 对象主要有两种方法
+* RUNNABLE 到 TERMINATED 状态
+    * 正常结束
+    * interrupt()
+    
