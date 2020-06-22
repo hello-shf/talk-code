@@ -470,3 +470,69 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 * 递归注意深度，容易导致栈内存溢出
 * ThreadLocal的内存泄漏问题
 * Spring对数据源连接池的抽象 ThreadLocal实现的
+
+#### [12 | 如何用面向对象思想写好并发程序？](https://time.geekbang.org/column/article/87365)
+
+> 笔记
+* 三个思路
+    * 封装共享变量
+        * 将共享变量作为对象属性封装在内部，对所有公共方法制定并发访问策略
+    * 识别共享变量间的约束条件
+    ```java
+    public class SafeWM {
+      // 库存上限
+      private final AtomicLong upper =
+            new AtomicLong(0);
+      // 库存下限
+      private final AtomicLong lower =
+            new AtomicLong(0);
+      // 设置库存上限
+      void setUpper(long v){
+        upper.set(v);
+      }
+      // 设置库存下限
+      void setLower(long v){
+        lower.set(v);
+      }
+      // 省略其他业务代码
+    }
+    ```
+        * 约束条件，决定了并发访问策略
+        * 忽略了一个约束条件：下限 < 上限
+        * 不安全的一个例子
+    ```java
+    public class SafeWM {
+      // 库存上限
+      private final AtomicLong upper =
+            new AtomicLong(0);
+      // 库存下限
+      private final AtomicLong lower =
+            new AtomicLong(0);
+      // 设置库存上限
+      void setUpper(long v){
+        // 检查参数合法性
+        if (v < lower.get()) {
+          throw new IllegalArgumentException();
+        }
+        upper.set(v);
+      }
+      // 设置库存下限
+      void setLower(long v){
+        // 检查参数合法性
+        if (v > upper.get()) {
+          throw new IllegalArgumentException();
+        }
+        lower.set(v);
+      }
+      // 省略其他业务代码
+    }
+    ```
+        当setUpper(5) 和 setLower(7)同时发生时，会发生upper = 5 lower = 7
+        * 着重注意if else语句造成的竞态条件
+* 制定并发访问策略
+    * 避免共享
+    * 不变模式（不可变对象/变量）
+    * 管程/并发工具(JUC)
+        * 优先考虑java的并发包，一般能解决绝大多数并发问题
+        * 迫不得已时再考虑“低级”原语：synchronized、Lock、Semaphore，使用时千万小心
+        * 避免过早优化，首先保证安全，等到确实遇到性能瓶颈的时候，再考虑优化
