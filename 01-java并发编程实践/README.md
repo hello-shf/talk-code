@@ -536,3 +536,64 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
         * 优先考虑java的并发包，一般能解决绝大多数并发问题
         * 迫不得已时再考虑“低级”原语：synchronized、Lock、Semaphore，使用时千万小心
         * 避免过早优化，首先保证安全，等到确实遇到性能瓶颈的时候，再考虑优化
+        
+#### [14 | Lock和Condition（上）：隐藏在并发包中的管程](https://time.geekbang.org/column/article/87779)
+
+> 笔记
+
+* 并发编程的两个核心问题
+    * 互斥-同一个时刻只能有一个线程可以访问共享资源
+    * 同步-线程之间如何通信、协作
+* Java中管程的两个实现--**java线程的两种协作方式**
+    * synchronized + wait + notify
+        * synchronized实现互斥
+        * wait + notify实现同步
+    * lock + Condition
+        * lock实现互斥
+        * condition实现同步
+* 再造管程的理由
+    * synchronized存在的问题
+        * 1.5之前性能不够好 + 容易膨胀为重量级锁
+        * **死锁问题**无法破坏**不可抢占条件**
+* 设计一个锁能解决**不可抢占条件**
+    * 能够响应中断
+    * 支持超时
+    * 非阻塞的获取锁
+    ```java
+        // 支持中断的API
+        void lockInterruptibly() 
+          throws InterruptedException;
+        // 支持超时的API
+        boolean tryLock(long time, TimeUnit unit) 
+          throws InterruptedException;
+        // 支持非阻塞获取锁的API
+        boolean tryLock();
+    ```
+* 如何保证可见性
+    * synchronized
+        * happens-before中有一个锁规则，保证了synchronized的可见性
+    * Lock
+        * 利用了 volatile 相关的 Happens-Before 规则
+        ReentrantLock 内部持有一个volatile的变量
+        ```java
+        class SampleLock {
+          volatile int state;
+          // 加锁
+          lock() {
+            // 省略代码无数
+            state = 1;
+          }
+          // 解锁
+          unlock() {
+            // 省略代码无数
+            state = 0;
+          }
+        }
+        ```
+* 可重入锁
+    * 线程可以重复获取同一把锁
+    * ReentrantLock汉语意思就是可重入锁的含义
+* 公平锁与非公平锁
+    * 公平锁：按照先来先得的原则，完全公平。其实就是排队等待
+    * 非公平锁：公平竞争锁，每次竞争所有线程获取锁的机会是均等待。（为什么叫非公平锁呢？因为运气不好的可能造成线程饥饿）
+    
