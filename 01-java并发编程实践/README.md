@@ -596,4 +596,113 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 * 公平锁与非公平锁
     * 公平锁：按照先来先得的原则，完全公平。其实就是排队等待
     * 非公平锁：公平竞争锁，每次竞争所有线程获取锁的机会是均等待。（为什么叫非公平锁呢？因为运气不好的可能造成线程饥饿）
+
+
+#### [15 | Lock和Condition（下）：Dubbo如何用管程实现异步转同步？](https://time.geekbang.org/column/article/88487)
+
+> 笔记
+
+* 相对synchronized + wait + notify/ReentrantLock + Condition的优势
+    * Lock&Condition 实现的管程是支持多个条件变量的，这是二者的一个重要区别。
+    * sync + wait只能支持一个条件，因为条件都是绑定到monitor上的，每一个锁只有一个monitor
+* 如何实现一个阻塞队列
+    * 阻塞队列需要两个条件：满阻塞/空阻塞
+        * sync管程只能实现一个阻塞，因为其只能支持一个条件变量
+        * lock + Condition 可以支持多个条件变量
+    * 复习
+        * sync + wait + notify + notifyAll
+        * lock + Condition + await + signal + signalAll
+        ```java
+        public class BlockedQueue<T>{
+          final Lock lock =
+            new ReentrantLock();
+          // 条件变量：队列不满  
+          final Condition notFull =
+            lock.newCondition();
+          // 条件变量：队列不空  
+          final Condition notEmpty =
+            lock.newCondition();
+        
+          // 入队
+          void enq(T x) {
+            lock.lock();
+            try {
+              while (队列已满){
+                // 等待队列不满
+                notFull.await();
+              }  
+              // 省略入队操作...
+              //入队后,通知可出队
+              notEmpty.signal();
+            }finally {
+              lock.unlock();
+            }
+          }
+          // 出队
+          void deq(){
+            lock.lock();
+            try {
+              while (队列已空){
+                // 等待队列不空
+                notEmpty.await();
+              }  
+              // 省略出队操作...
+              //出队后，通知可入队
+              notFull.signal();
+            }finally {
+              lock.unlock();
+            }  
+          }
+        }
+        ```
+* Dubbo如何实现异步的RPC实现同步的等待结果
+    ```java
+    // 创建锁与条件变量
+    private final Lock lock 
+        = new ReentrantLock();
+    private final Condition done 
+        = lock.newCondition();
     
+    // 调用方通过该方法等待结果
+    Object get(int timeout){
+      long start = System.nanoTime();
+      lock.lock();
+      try {
+      while (!isDone()) {
+        done.await(timeout);
+          long cur=System.nanoTime();
+        if (isDone() || 
+              cur-start > timeout){
+          break;
+        }
+      }
+      } finally {
+      lock.unlock();
+      }
+      if (!isDone()) {
+      throw new TimeoutException();
+      }
+      return returnFromResponse();
+    }
+    // RPC结果是否已经返回
+    boolean isDone() {
+      return response != null;
+    }
+    // RPC结果返回时调用该方法   
+    private void doReceived(Response res) {
+      lock.lock();
+      try {
+        response = res;
+        if (done != null) {
+          done.signal();
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+    ```
+    
+> 猜想
+
+* Future应该也是通过 Lock + Condition实现的
+* 明天看源码ArrayListBlockQueue/LinkedListBlockQueue，看二者如何实现的阻塞
