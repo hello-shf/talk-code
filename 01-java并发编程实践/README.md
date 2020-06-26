@@ -706,3 +706,32 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 
 * Future应该也是通过 Lock + Condition实现的
 * 明天看源码ArrayListBlockQueue/LinkedListBlockQueue，看二者如何实现的阻塞
+
+#### [16 | Semaphore：如何快速实现一个限流器？](https://time.geekbang.org/column/article/88499)
+
+> 笔记
+
+* 信号量
+    * 互斥性
+        * Semaphore如何实现互斥。指定Semaphore的计数器为1，也就意味着同一个时刻只能有一个线程可以访问临界区资源
+    * 线程并行控制
+        * Semaphore如何控制并发。Semaphore通过计数器，控制访问临界区的线程不能超过计数器值。
+* 操作系统中也存在信号量--作用和java中的信号量也是相同的
+    * 操作系统利用信号量控制进程的并行
+* Semaphore 的公平性
+    * 默认Semaphore是非公平的，同 ReentrantLock
+    * Semaphore提供了两个构造方法，如下所示，两个参数的构造方法，第二个参数可以指定公平性
+        * false：非公平，也就是公平竞争，容易饥饿
+        * true：公平，先来后到
+    ```java
+        public Semaphore(int permits) {
+            sync = new NonfairSync(permits);
+        }
+        public Semaphore(int permits, boolean fair) {
+            sync = fair ? new FairSync(permits) : new NonfairSync(permits);
+        }
+    ```
+
+> 总结
+
+* 信号量在 Java 语言里面名气并不算大，但是在其他语言里却是很有知名度的。Java 在并发编程领域走的很快，重点支持的还是管程模型。 管程模型理论上解决了信号量模型的一些不足，主要体现在易用性和工程化方面，例如用信号量解决我们曾经提到过的阻塞队列问题，就比管程模型麻烦很多。
