@@ -734,4 +734,53 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 
 > 总结
 
-* 信号量在 Java 语言里面名气并不算大，但是在其他语言里却是很有知名度的。Java 在并发编程领域走的很快，重点支持的还是管程模型。 管程模型理论上解决了信号量模型的一些不足，主要体现在易用性和工程化方面，例如用信号量解决我们曾经提到过的阻塞队列问题，就比管程模型麻烦很多。
+* 信号量在 Java 语言里面名气并不算大，但是在其他语言里却是很有知名度的。Java 在并发编程领域走的很快，
+重点支持的还是管程模型。 管程模型理论上解决了信号量模型的一些不足，主要体现在易用性和工程化方面，
+例如用信号量解决我们曾经提到过的阻塞队列问题，就比管程模型麻烦很多。
+
+#### [17 | ReadWriteLock：如何快速实现一个完备的缓存？](https://time.geekbang.org/column/article/88909)
+
+> 笔记
+
+* 管程和信号量都能解决所有并发问题了，JUC中还存在那么多并发工具？
+    * 分场景优化，提升易用性
+* 什么是读写锁
+    * 读写锁普遍存在于各种语言，三条基本原则
+        * 允许多个线程同时读共享变量
+        * 统一时刻只允许一个线程写共享变量
+        * 如果一个写线程正在执行写操作，此时禁止读线程读共享变量（读锁和写锁是互斥的）
+            * 对比mysql（以下两条结论都建立在两个独立的事务中）
+                * 在read-uncommitted、read-committed、repeatable-read级别下，对同一行数据的写不会阻塞读。原因在于在以上三个隔离级别中，是通过MVCC控制的。当然如果采用当前读（lock in share mode/for update）则可以产生阻塞
+                * 在serializable隔离级别下，同读写锁的第三条读写互斥规则。原因是在serializable级别下所有的读都是当前读（互斥读）。
+                * mysql 演示
+                ```mysql
+                -- session1
+                -- 查询事务级别
+                select @@tx_isolation;
+                -- 设置事务级别
+                set session transaction isolation level read committed;
+                -- 开启事务
+                start transaction;
+                select * from sys_test where id = 2 ; -- 加上lock in share mode同读写锁的读写互斥;
+                -- 提交事务
+                commit;
+  
+                -- session2
+                set session transaction isolation level read committed;
+               start transaction;
+               update sys_test set name = '55' where id = 2;
+               select * from sys_test where id = 2;
+               commit;
+                ```
+* ReadWriteLock读写锁
+    * 读多写少的场景
+    * 缓存
+* 读写锁的升级与降级
+    * ReadWriteLock不支持锁升级（会饥饿），但是支持锁降级。
+
+> 理解
+
+* ReadWriteLock读写锁如果不互斥，也就没必要存在读锁了。
+    * 类似mysql，如果读写不互斥，则没必要加读锁。
+    * 读锁存在的意义在于第三条规则。写同时阻塞读，可以保证读到的一定是最新的。
+    * mysql在前三个隔离级别下默认读是快照读（无锁读），所以才存在了脏读、不可重复度、幻读。所以解决以上三个问题的终极方法就是所有读都采用当前读（锁读）、当然这会影响性能，不建议使用。
