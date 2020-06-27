@@ -750,7 +750,7 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
         * 统一时刻只允许一个线程写共享变量
         * 如果一个写线程正在执行写操作，此时禁止读线程读共享变量（读锁和写锁是互斥的）
             * 对比mysql（以下两条结论都建立在两个独立的事务中）
-                * 在read-uncommitted、read-committed、repeatable-read级别下，对同一行数据的写不会阻塞读。原因在于在以上三个隔离级别中，是通过MVCC控制的。当然如果采用当前读（lock in share mode/for update）则可以产生阻塞
+                * 在read-uncommitted、read-committed、repeatable-read级别下，对同一行数据的写不会阻塞读。原因在于在以上三个隔离级别中，是通过MVCC控制的。当然如果采用当前读（lock in share mode读读不互斥，读写互斥。ps：for update读读互斥、读写互斥）则可以产生阻塞
                 * 在serializable隔离级别下，同读写锁的第三条读写互斥规则。原因是在serializable级别下所有的读都是当前读（互斥读）。
                 * mysql 演示
                 ```mysql
