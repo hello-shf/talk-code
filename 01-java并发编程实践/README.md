@@ -784,3 +784,73 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
     * 类似mysql，如果读写不互斥，则没必要加读锁。
     * 读锁存在的意义在于第三条规则。写同时阻塞读，可以保证读到的一定是最新的。
     * mysql在前三个隔离级别下默认读是快照读（无锁读），所以才存在了脏读、不可重复度、幻读。所以解决以上三个问题的终极方法就是所有读都采用当前读（锁读）、当然这会影响性能，不建议使用。
+
+
+#### [18 | StampedLock：有没有比读写锁更快的锁？](https://time.geekbang.org/column/article/89456)
+
+> 笔记
+
+* StampedLock 和 ReadWriteLock的区别
+    * ReadWriteLock 支持两种模式（读读不互斥，写写互斥，读写互斥）
+        * 读锁
+        * 写锁
+    * StampedLock 支持三种模式
+        * 写锁        语义同ReadWriteLock的写锁
+        * 悲观读锁    语义同ReadWriteLock的读锁
+        * 乐观读锁    乐观锁-无锁，性能更好
+* StampedLock 锁升级 （不是内部实现）
+    * 当 StampedLock 乐观读期间遇到写操作（validate(stamp)方法可判断）
+* 注意事项
+    * StampedLock 是**不可重入**的
+    * 使用 StampedLock **一定不要调用中断操作**，如果需要支持中断功能，一定使用可中断的悲观读锁 readLockInterruptibly() 和写锁 writeLockInterruptibly()。这个规则一定要记清楚。
+
+> 范式
+* 读范式
+    ```java
+    final StampedLock sl = 
+      new StampedLock();
+    
+    // 乐观读
+    long stamp = 
+      sl.tryOptimisticRead();
+    // 读入方法局部变量
+    ......
+    // 校验stamp
+    if (!sl.validate(stamp)){
+      // 升级为悲观读锁
+      stamp = sl.readLock();
+      try {
+        // 读入方法局部变量
+        .....
+      } finally {
+        //释放悲观读锁
+        sl.unlockRead(stamp);
+      }
+    }
+    //使用方法局部变量执行业务操作
+    ......
+    ```
+* 写范式
+    ```java
+    long stamp = sl.writeLock();
+    try {
+      // 写共享变量
+      ......
+    } finally {
+      sl.unlockWrite(stamp);
+    }
+    ```
+        
+    
+    
+#### [19 | CountDownLatch和CyclicBarrier：如何让多线程步调一致？](https://time.geekbang.org/column/article/89461)
+
+> 笔记
+
+* CountDownLatch
+    * 主要用来解决一个线程等待多个线程的场景。可以类比旅游团团长要等待所有的游客到齐才能去下一个景点；
+    * 一旦计数器到0，再有线程调用await()，会直接通过。
+* CyclicBarrier
+    * 一组线程之间互相等待。 
+    * 具备自动重置功能。CyclicBarrier 的计数器是可以循环利用的。一旦计数器减到 0 会自动重置到你设置的初始值。
+    * CyclicBarrier 还可以设置回调函数
