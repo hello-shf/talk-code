@@ -840,8 +840,6 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
       sl.unlockWrite(stamp);
     }
     ```
-        
-    
     
 #### [19 | CountDownLatch和CyclicBarrier：如何让多线程步调一致？](https://time.geekbang.org/column/article/89461)
 
