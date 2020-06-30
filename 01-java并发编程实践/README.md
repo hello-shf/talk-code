@@ -855,3 +855,98 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 
 > TODO
 * CyclicBarrier实操
+
+#### [20 | 并发容器：都有哪些“坑”需要我们填？](https://time.geekbang.org/column/article/90201)
+
+> 笔记
+
+* List
+    * LinkedList
+    * ArrayList
+    * 同步容器
+        * Vector
+    * 并发容器
+        * CopyOnWriteArrayList
+* Set
+    * HashSet
+    * TreeSet
+    * LinkedSet
+    * 并发容器
+        * CopyOnWriteArraySet
+        * CopyOnWriteSkipListSet
+* Map
+    * LinkedHashMap
+    * HashMap
+    * TreeMap
+    * 同步容器
+        * HashTable
+    * 并发容器
+        * ConcurrentHashMap
+        * ConcurrentSkipListMap
+* Queue
+    * 非阻塞
+        * 线程不安全
+            * PriorityQueue
+            * LinkedList
+        * 线程安全
+            * 单端
+                * ConcurrentLinkedQueue
+            * 双端
+                * ConcurrentLinkedDeque
+    * 阻塞
+        * ArrayBlockingQueue
+            * 出队入队同一把锁
+            * 底层数据结构：数组
+            * 有界
+            * 默认不保证线程安全性
+        * LinkedBlockingQueue
+            * 底层链表
+            * “有界”阻塞队列（长度为int长度）
+        * SynchronousQueue
+            * 无空间（不存储元素）
+        * LinkedTransferQueue
+            * 无界：由链表组成的无界TransferQueue
+        * PriorityBlockingQueue
+            * 支持优先级
+            * 无界
+        * DelayQueue
+            * 延时阻塞队列
+            * 无界
+* 对于Collections.synchronizedXXX()的方法要着重注意**竞态条件**问题
+* 使用无界队列时要着重注意**oom**问题。例如：线程池的阻塞队列
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
