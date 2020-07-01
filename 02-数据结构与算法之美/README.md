@@ -35,3 +35,82 @@
     * 循环链表
 [详见](https://www.cnblogs.com/hello-shf/p/11304615.html)
     
+    
+#### [07 | 链表（下）：如何轻松写出正确的链表代码？](https://time.geekbang.org/column/article/41013)
+
+* 链表最终要的是引用问题
+    * 关于这个最好的一个问题就是**链表反转**能真的懂了链表反转就懂了链表和引用了。
+```java
+/**
+ * 描述：手写链表
+ *
+ * @Author shf
+ * @Date 2020/7/1 23:15
+ * @Version V1.0
+ **/
+public class LinkList<E> {
+    private class Node{
+        E e;
+        Node next;
+        public Node(E e){
+            this(e, null);
+        }
+        public Node(){
+            this(null, null);
+        }
+        public Node(E e, Node next){
+            this.e = e;
+            this.next = next;
+        }
+    }
+    private int size;
+    //虚拟头--哨兵
+    private Node dummyHead;
+    public LinkList(){
+        this.dummyHead = new Node(null, null);
+        this.size = 0;
+    }
+    private void add(int index, E e){
+        if(index > this.size)
+            throw new IllegalArgumentException("参数Index越界");
+        Node pre = dummyHead;
+        for(int i = 0; i<index; i++){
+            pre = pre.next;
+        }
+        pre.next = new Node(e, pre.next);
+        this.size ++;
+    }
+    public void add(E e){
+        this.addLast(e);
+    }
+    public void addFirst(E e){
+        this.add(0, e);
+    }
+    public void addLast(E e){
+        this.add(this.size, e);
+    }
+    @Override
+    public String toString(){
+        StringBuilder res = new StringBuilder();
+
+        Node cur = dummyHead.next;
+        while(cur != null){
+            res.append(cur.e + "->");
+            cur = cur.next;
+        }
+        res.append("NULL");
+        res.append("----size=" + size);
+        return res.toString();
+    }
+
+    public static void main(String[] args) {
+        LinkList<Integer> list = new LinkList<>();
+        list.add(1);
+        list.add(2);
+        list.add(3);
+        list.add(4);
+        list.add(5);
+        System.out.println(list);
+    }
+}
+```
