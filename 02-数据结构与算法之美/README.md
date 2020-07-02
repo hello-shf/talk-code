@@ -114,3 +114,117 @@ public class LinkList<E> {
     }
 }
 ```
+
+
+#### [08 | 栈：如何实现浏览器的前进和后退功能？](https://time.geekbang.org/column/article/41222)
+```java
+/**
+ * 描述：手写 基于数组的 可扩容的栈
+ *
+ * @Author shf
+ * @Date 2020/7/2 22:40
+ * @Version V1.0
+ **/
+public class MyStack<E>  implements Stack<E> {
+    private E[] items;
+    private int size = 0;
+    private final static int DEFAULT_CAPACITY = 4;
+    private static final float DEFAULT_LOAD_FACTOR = 0.25f;
+    public MyStack(){
+        this.items = (E[]) new Object[DEFAULT_CAPACITY];
+        this.size = 0;
+    }
+    public MyStack(int size){
+        this.items = (E[]) new Object[size];
+        this.size = 0;
+    }
+    @Override
+    public boolean push(E e) {
+        //最大长度
+        if(this.size == Integer.MAX_VALUE){
+            return false;
+        }
+        //判断是否需要扩容
+        if(this.size == this.items.length){
+            int len = items.length;
+            //防止长度超过 integer 的最大值
+            len = len > Integer.MAX_VALUE / 2 ? Integer.MAX_VALUE : len * 2;
+            resize(len);
+        }
+        this.items[size] = e;
+        this.size ++;
+        return true;
+    }
+
+    /**
+     * 接收 newCapacity 满足扩容和缩容，统一逻辑
+     * @param newCapacity
+     */
+    private void resize(int newCapacity){
+        E[] newItems = (E[]) new Object[newCapacity];
+        for(int i = 0; i<this.size; i++){
+            newItems[i] = this.items[i];
+        }
+        this.items = newItems;
+    }
+
+    @Override
+    public E peek() {
+        return this.items[this.size - 1];
+    }
+
+    @Override
+    public E pop() {
+        if(this.size == 0){
+            return null;
+        }
+        E tmp = this.items[this.size - 1];
+        this.size --;
+        //防止复杂度震荡（假如是当减少到 len 的 1/ 2就缩容，很容易造成，
+        // 当 len = 4，size = 2，此时反复则进行增加和删除，会造成反复的resize）
+        //同 hashmap 红黑树转链表 为6 链表转红黑树为 8的道理是一样的
+        if(this.size < items.length * DEFAULT_LOAD_FACTOR && this.items.length / 2 != 0){
+            this.resize(this.items.length / 2);
+        }
+        return tmp;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return this.size == 0;
+    }
+    public int size(){
+        return this.size;
+    }
+
+    public int length(){
+        return this.items.length;
+    }
+
+    public static void main(String[] args) {
+        MyStack<Integer> stack = new MyStack<>();
+        stack.push(0);
+        stack.push(1);
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + stack.peek());
+        stack.push(2);
+        stack.push(3);
+        stack.push(4);
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + stack.peek());
+        Integer value = stack.pop();
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + value);
+        value = stack.pop();
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + value);
+        value = stack.pop();
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + value);
+        //当满足 len * 0.25 缩容
+        value = stack.pop();
+        System.out.println("length = " + stack.length() + " ---- size = " + stack.size() + " ---- value = " + value);
+//        length = 4 ---- size = 2 ---- value = 1
+//        length = 8 ---- size = 5 ---- value = 4
+//        length = 8 ---- size = 4 ---- value = 4
+//        length = 8 ---- size = 3 ---- value = 3
+//        length = 8 ---- size = 2 ---- value = 2
+//        length = 4 ---- size = 1 ---- value = 1
+    }
+}
+```
