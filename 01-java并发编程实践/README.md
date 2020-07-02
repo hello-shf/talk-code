@@ -939,11 +939,65 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 * **TODO**实操
 
 
+#### [22 | Executor与线程池：如何创建正确的线程池？](https://time.geekbang.org/column/article/90771)
 
-
-
-
-
+* 线程池是一种生产者 - 消费者模式
+    * 线程池的使用方式 是 生产者
+    * 线程池本身是消费者
+* ThreadPoolExecutor
+    ```java
+    ThreadPoolExecutor(
+      int corePoolSize,
+      int maximumPoolSize,
+      long keepAliveTime,
+      TimeUnit unit,
+      BlockingQueue<Runnable> workQueue,
+      ThreadFactory threadFactory,
+      RejectedExecutionHandler handler) 
+    ```
+    * corePoolSize 核心池大小
+        表示线程池保有的最小线程数。有些项目很闲，但是也不能把人都撤了，至少要留 corePoolSize 个人坚守阵地。
+        * 当线程数小于核心线程数时，即使有线程空闲，线程池也会优先创建新线程处理
+        * 核心线程会一直存活，即使没有任务需要执行
+        * 设置allowCoreThreadTimeout=true（默认false）时，核心线程会超时关闭
+    * maximumPoolSize 最大池
+        表示线程池创建的最大线程数。当项目很忙时，就需要加人，但是也不能无限制地加，最多就加到 maximumPoolSize 个人。当项目闲下来时，就要撤人了，最多能撤到 corePoolSize 个人。
+    * keepAliveTime & unit 空闲线程存活的时间
+        上面提到项目根据忙闲来增减人员，那在编程世界里，如何定义忙和闲呢？很简单，一个线程如果在一段时间内，都没有执行任务，说明很闲，keepAliveTime 和 unit 就是用来定义这个“一段时间”的参数。也就是说，如果一个线程空闲了keepAliveTime & unit这么久，而且线程池的线程数大于 corePoolSize ，那么这个空闲的线程就要被回收了。
+    * workQueue 工作队列
+        工作队列，当线程核心池已满，接下来来的任务就会被放到工作队列（阻塞队列）
+        * 最好不要用无界队列，一旦业务量增加很容易OOM
+    * threadFactory 
+        通过这个参数你可以自定义如何创建线程，例如你可以给线程指定一个有意义的名字。（PS：一般给线程池名字加前缀用这个方法）
+    * handler 拒绝策略
+        当工作队列和线程池都满了，那么此时提交任务，线程池就会拒绝接收
+        * CallerRunsPolicy：提交任务的线程自己去执行该任务。
+        * AbortPolicy：默认的拒绝策略，会 throws RejectedExecutionException
+        * DiscardPolicy：直接丢弃任务，没有任何异常抛出
+        * DiscardOldestPolicy：丢弃最老的任务，其实就是把最早进入工作队列的任务丢弃，然后把新任务加入到工作队列。
+        * 实现 RejectedExecutionHandler 接口 自定义拒绝策略，如果处理的任务不允许丢失，则可以和降级策略配合使用。
+            可以放数据库，放mq,redis，本地文件都可以，具体要看实际需求。
+> 重点
+* 注意事项
+    * **不要使用无界工作队列** 最好不要使用 无界队列 因为业务量的突然增加很容易导致OOM
+    * 默认拒绝策略要慎重使用 实际开发任务中可以配合MQ和服务降级处理
+    * 线程池的异常处理 execute() 方法提交任务时，如果任务在执行的过程中出现运行时异常，会导致执行任务的线程终止；不过，最致命的是任务虽然异常了，但是你却获取不到任何通知，这会让你误以为任务都执行得很正常。
+    最好的办法还是捕获所有异常，按需处理
+    * 线程池的使用建议 
+        * 业务隔离 
+        * 压测确定队列长度或线程数
+    * 核心池大小
+        * 经验值
+            * IO密集型
+                * 2 * CPU + 1
+            * CPU密集型
+                * CPU + 1
+        * 实践值
+            * 最佳线程数目 = （线程等待时间与线程CPU时间之比 + 1）* CPU数目
+        * 最佳值
+            * 压测
+* 线程池流程
+![22-1](https://github.com/hello-shf/talk-code/blob/master/images/22-1.png?raw=true)
 
 
 
