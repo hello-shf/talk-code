@@ -228,3 +228,21 @@ public class MyStack<E>  implements Stack<E> {
     }
 }
 ```
+
+#### [09 | 队列：队列在线程池等有限资源池中的应用](https://time.geekbang.org/column/article/41330)
+
+> 笔记
+
+* 顺序队列
+    * 泛指使用数组实现的队列
+* 链式队列
+    * 泛指使用链表实现的队列
+* 基于数组的循环队列
+    * 设置两个指针**头指针****尾指针**，用来解决每次remove操作导致的数据搬移，最好的方式就是减少搬移的次数，不需要每次都搬移
+    最好的解决方案就是增加一个**head和tail**指针，每次remove也就是出队，只需要将尾指针右移，入队head指针左移
+* 实现队列的关键是 判满和判空
+    * 顺序队列 指针总是指向下一个空值          满：tail == size      空：head == tail
+    * 循环队列需要空出一个位置用于区分空和满   满：(tail+1)%n=head   空：head == tail
+    * 链式队列 tail指针总是指向一个null        满：tail == size      空：head == tail
+* JUC中公平锁的实现 ArrayListBlockedQueue
+

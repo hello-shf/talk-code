@@ -999,9 +999,34 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 * 线程池流程
 ![22-1](https://github.com/hello-shf/talk-code/blob/master/images/22-1.png?raw=true)
 
+#### [23 | Future：如何用多线程实现最优的“烧水泡茶”程序？](https://time.geekbang.org/column/article/91292)
 
+> 笔记
+* 如何获取异步执行结果
+    * Future
+    * CountdownLatch
+    * join方法
+* Future接口是一个获取异步结果的通用接口
+* FutureTask是如何获取结果的
+    * FutureTask源码中状态标识 state
+        * NEW           = 0;初始状态
+        *  COMPLETING   = 1;正在执行
+        *  NORMAL       = 2;
+        *  EXCEPTIONAL  = 3;
+        *  CANCELLED    = 4;
+        *  INTERRUPTING = 5;
+        *  INTERRUPTED  = 6;
+    * 状态转换 TODO详细阅读源码理解
+        * NEW -> COMPLETING -> NORMAL
+        * NEW -> COMPLETING -> EXCEPTIONAL
+        * NEW -> CANCELLED
+        * NEW -> INTERRUPTING -> INTERRUPTED
+* FutureTask的阻塞方法不像有些博客说的 Object#wait而是 LockSupport.park(this);对应的唤醒线程的方法 LockSupport.unpark(this);
 
+> TODO
 
+* 总结java中实现获取异步结果的方式和工具
+* 总结 异步转同步的方式
 
 
 
