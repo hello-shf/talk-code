@@ -1029,12 +1029,95 @@ sleep()方法需要指定等待的时间，它可以让当前正在执行的线�
 * 总结 异步转同步的方式
 
 
+#### [24 | CompletableFuture：异步编程没那么难](https://time.geekbang.org/column/article/91569)
 
+> 笔记
+* CompletableFuture 的核心优势
+    * 无需手工维护线程，没有繁琐的手工维护线程的工作，给任务分配线程的工作也不需要我们关注；(对比FutureTask的实现)
+    * 语义更清晰，例如 f3 = f1.thenCombine(f2, ()->{}) 能够清晰地表述“任务 3 要等待任务 1 和任务 2 都完成后才能开始”；
+    * 代码更简练并且专注于业务逻辑，几乎所有代码都是业务逻辑相关的。
+* 创建CompletableFuture对象
+    * runAsync(Runnable runnable) 不获取返回值的静态方法
+    * supplyAsync(Supplier supplier) 可获取返回值的方法 （ps：作用同Future），Supplier相对于Runnable，get方法可以获取返回值
+    * 以上两个方法可以指定线程池 （PS：CompletableFuture默认使用ForkJoinPool线程池）
+    ```java
+    //使用默认线程池
+    static CompletableFuture<Void> 
+      runAsync(Runnable runnable)
+    static <U> CompletableFuture<U> 
+      supplyAsync(Supplier<U> supplier)
+    //可以指定线程池  
+    static CompletableFuture<Void> 
+      runAsync(Runnable runnable, Executor executor)
+    static <U> CompletableFuture<U> 
+      supplyAsync(Supplier<U> supplier, Executor executor)  
+    ```
+* CompletableFuture实现的CompletionStage接口的作用
+    任务的时序关系管理
+    * 串行关系
+        ![24-1](https://github.com/hello-shf/talk-code/blob/master/images/串行关系.png?raw=true)
+        ```java
+        CompletionStage<R> thenApply(fn);
+        CompletionStage<R> thenApplyAsync(fn);
+        CompletionStage<Void> thenAccept(consumer);
+        CompletionStage<Void> thenAcceptAsync(consumer);
+        CompletionStage<Void> thenRun(action);
+        CompletionStage<Void> thenRunAsync(action);
+        CompletionStage<R> thenCompose(fn);
+        CompletionStage<R> thenComposeAsync(fn);
+        ```
+    * 并行关系
+        ![24-2](https://github.com/hello-shf/talk-code/blob/master/images/并行关系.png?raw=true)
+    * 汇聚关系
+        ![24-3](https://github.com/hello-shf/talk-code/blob/master/images/汇聚关系.png?raw=true)
+        * AND汇聚关系
+            ```java
+            CompletionStage<R> thenCombine(other, fn);
+            CompletionStage<R> thenCombineAsync(other, fn);
+            CompletionStage<Void> thenAcceptBoth(other, consumer);
+            CompletionStage<Void> thenAcceptBothAsync(other, consumer);
+            CompletionStage<Void> runAfterBoth(other, action);
+            CompletionStage<Void> runAfterBothAsync(other, action);
+            ```
+        * OR 汇聚关系
+        ```java
+        CompletionStage applyToEither(other, fn);
+        CompletionStage applyToEitherAsync(other, fn);
+        CompletionStage acceptEither(other, consumer);
+        CompletionStage acceptEitherAsync(other, consumer);
+        CompletionStage runAfterEither(other, action);
+        CompletionStage runAfterEitherAsync(other, action);
+        ```
+* 异常处理
+    ```java
+    CompletionStage exceptionally(fn);
+    CompletionStage<R> whenComplete(consumer);
+    CompletionStage<R> whenCompleteAsync(consumer);
+    CompletionStage<R> handle(fn);
+    CompletionStage<R> handleAsync(fn);
+    ```
 
+> 课后思考
+* 创建采购订单的时候，需要校验一些规则，例如最大金额是和采购员级别相关的。有同学利用 CompletableFuture 实现了这个校验的功能，逻辑很简单，首先是从数据库中把相关规则查出来，然后执行规则校验。你觉得他的实现是否有问题呢？
 
+```java
+//采购订单
+PurchersOrder po;
+CompletableFuture<Boolean> cf = 
+  CompletableFuture.supplyAsync(()->{
+    //在数据库中查询规则
+    return findRuleByJdbc();
+  }).thenApply(r -> {
+    //规则校验
+    return check(po, r);
+});
+Boolean isOk = cf.join();
+```
 
-
-
+* 解答
+    * 没有进行异常处理，
+    * 要指定专门的线程池做数据库查询（读数据库属于io操作，应该放在单独线程池，避免线程饥饿）
+    * 如果检查和查询都比较耗时，那么应该像之前的对账系统一样，采用生产者和消费者模式，让上一次的检查和下一次的查询并行起来。
 
 
 
