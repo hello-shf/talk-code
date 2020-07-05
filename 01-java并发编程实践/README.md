@@ -1119,16 +1119,165 @@ Boolean isOk = cf.join();
     * 要指定专门的线程池做数据库查询（读数据库属于io操作，应该放在单独线程池，避免线程饥饿）
     * 如果检查和查询都比较耗时，那么应该像之前的对账系统一样，采用生产者和消费者模式，让上一次的检查和下一次的查询并行起来。
 
+#### [25 | CompletionService：如何批量执行异步任务？](https://time.geekbang.org/column/article/92245)
 
+* CompletionService 批量提交异步任务
+```java
+// 创建线程池
+ExecutorService executor =
+  Executors.newFixedThreadPool(3);
+// 异步向电商S1询价
+Future<Integer> f1 = 
+  executor.submit(
+    ()->getPriceByS1());
+// 异步向电商S2询价
+Future<Integer> f2 = 
+  executor.submit(
+    ()->getPriceByS2());
+// 异步向电商S3询价
+Future<Integer> f3 = 
+  executor.submit(
+    ()->getPriceByS3());
+    
+// 获取电商S1报价并保存
+r=f1.get();
+executor.execute(()->save(r));
+  
+// 获取电商S2报价并保存
+r=f2.get();
+executor.execute(()->save(r));
+  
+// 获取电商S3报价并保存  
+r=f3.get();
+executor.execute(()->save(r));
+```
 
+* Future 实现“询价”程序
+    * 如上所示，需要一个个的get然后执行下一步操作，f1, f2, f3需要一次等待
+```java
+// 创建阻塞队列
+BlockingQueue<Integer> bq =
+  new LinkedBlockingQueue<>();
+//电商S1报价异步进入阻塞队列  
+executor.execute(()->
+  bq.put(f1.get()));
+//电商S2报价异步进入阻塞队列  
+executor.execute(()->
+  bq.put(f2.get()));
+//电商S3报价异步进入阻塞队列  
+executor.execute(()->
+  bq.put(f3.get()));
+//异步保存所有报价  
+for (int i=0; i<3; i++) {
+  Integer r = bq.take();
+  executor.execute(()->save(r));
+}  
 
+```
+* 阻塞队列的优化方案
+    * 如上所示 阻塞队列也能解决这种互相等待操作造成的资源浪费
+* 利用 CompletionService 实现询价系统
+    * CompletionService 内部实现了一个阻塞队列，默认 LinkedListBlockingQueue（建议覆盖，因为默认的是无界的）
+    * CompletionService 会把Future对象放到阻塞队列中。
+    代码实现如下所示
+```java
+// 创建线程池
+ExecutorService executor = 
+  Executors.newFixedThreadPool(3);
+// 创建CompletionService
+CompletionService<Integer> cs = new 
+  ExecutorCompletionService<>(executor);
+// 异步向电商S1询价
+cs.submit(()->getPriceByS1());
+// 异步向电商S2询价
+cs.submit(()->getPriceByS2());
+// 异步向电商S3询价
+cs.submit(()->getPriceByS3());
+// 将询价结果异步保存到数据库
+for (int i=0; i<3; i++) {
+  Integer r = cs.take().get();// **TODO 验证是否是先执行完的，先入队**
+  executor.execute(()->save(r));
+}
+```
+**TODO 验证是否是先执行完的，先入队**
+* 利用 CompletionService 实现 Dubbo 中的 Forking Cluster
+    * Dubbo 中有一种叫做 Forking 的集群模式，这种集群模式下，支持并行地调用多个查询服务，只要有一个成功返回结果，整个服务就可以返回了。
+```java
+// 创建线程池
+ExecutorService executor =
+  Executors.newFixedThreadPool(3);
+// 创建CompletionService
+CompletionService<Integer> cs =
+  new ExecutorCompletionService<>(executor);
+// 用于保存Future对象
+List<Future<Integer>> futures =
+  new ArrayList<>(3);
+//提交异步任务，并保存future到futures 
+futures.add(
+  cs.submit(()->geocoderByS1()));
+futures.add(
+  cs.submit(()->geocoderByS2()));
+futures.add(
+  cs.submit(()->geocoderByS3()));
+// 获取最快返回的任务执行结果
+Integer r = 0;
+try {
+  // 只要有一个成功返回，则break
+  for (int i = 0; i < 3; ++i) {
+    r = cs.take().get();
+    //简单地通过判空来检查是否成功返回
+    if (r != null) {
+      break;
+    }
+  }
+} finally {
+  //取消所有任务
+  for(Future<Integer> f : futures)
+    f.cancel(true);
+}
+// 返回结果
+return r;
+```
 
+> 总结
+* 当需要批量提交异步任务的时候建议你使用 CompletionService。CompletionService 将线程池 Executor 和阻塞队列 BlockingQueue 的功能融合在了一起，能够让批量异步任务的管理更简单。除此之外，CompletionService 能够让异步任务的执行结果有序化，先执行完的先进入阻塞队列，利用这个特性，你可以轻松实现后续处理的有序性，避免无谓的等待，同时还可以快速实现诸如 Forking Cluster 这样的需求。
+* CompletionService 的实现类 ExecutorCompletionService，需要你自己创建线程池，虽看上去有些啰嗦，但好处是你可以让多个 ExecutorCompletionService 的线程池隔离，这种隔离性能避免几个特别耗时的任务拖垮整个应用的风险。
 
+> 课后思考
 
+* 本章使用 CompletionService 实现了一个询价应用的核心功能，后来又有了新的需求，需要计算出最低报价并返回，下面的示例代码尝试实现这个需求，你看看是否存在问题呢？
+```java
+// 创建线程池
+ExecutorService executor = 
+  Executors.newFixedThreadPool(3);
+// 创建CompletionService
+CompletionService<Integer> cs = new 
+  ExecutorCompletionService<>(executor);
+// 异步向电商S1询价
+cs.submit(()->getPriceByS1());
+// 异步向电商S2询价
+cs.submit(()->getPriceByS2());
+// 异步向电商S3询价
+cs.submit(()->getPriceByS3());
+// 将询价结果异步保存到数据库
+// 并计算最低报价
+AtomicReference<Integer> m =
+  new AtomicReference<>(Integer.MAX_VALUE);
+for (int i=0; i<3; i++) {
+  executor.execute(()->{
+    Integer r = null;
+    try {
+      r = cs.take().get();
+    } catch (Exception e) {}
+    save(r);
+    m.set(Integer.min(m.get(), r));
+  });
+}
+return m;
+```
 
-
-
-
+> 解答
+* 以上代码无法保证三个线程 和 主线程 return m的顺序。可以加个CountDownLatch 来保证线程执行完成 再让主线程return。
 
 
 
