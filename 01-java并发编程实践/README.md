@@ -1275,9 +1275,53 @@ for (int i=0; i<3; i++) {
 }
 return m;
 ```
-
+Copy
 > 解答
 * 以上代码无法保证三个线程 和 主线程 return m的顺序。可以加个CountDownLatch 来保证线程执行完成 再让主线程return。
 
+#### [26 | Fork/Join：单机版的MapReduce](https://time.geekbang.org/column/article/91569)
 
+> 笔记
+* 从***任务***的角度看待并发编程
+    * 不难发现线程池、Future、CompletableFuture、CompletionService都是站在任务的角度看待并发编程，将视野扩大，不再将精力都浪费在线程的协作上
+    * 对于简单的并行任务，可以通过**线程池+Future**
+    * 如果任务之间有耦合关系，不管是AND或者OR，都可以CompletableFuture来解决
+    * 如果是批量任务，可以通过CompletionService来解决
+* 并发编程关注的三个问题
+    * 互斥、
+        * 实现互斥的方案：锁：Synchronized、ReentrantLock、ReadWriteLock、StampedLock、、、
+    * 分工、
+        * 实现分工的方案：线程池、CompletionService、CompletableFuture
+    * 协作
+        * 线程协作的方案：管程：synchronized+wait+notify、Lock+Condition、CountDownLatch、CyclicBarrier
+* 从更高的视野看待并发编程
+    * 任务
+        * 线程任务调度方式：线程池+Future、CompletionService、CompletableFuture
+* 任务类型
+    * 并行任务：线程池 + Future + 阻塞队列、CompletableFuture
+    * 批量任务：CompletionService
+    * 聚合任务：CompletableFuture
+    * **分治任务**：Fork/Join
+* Fork/Join
+    * 理解
+        * Fork对应任务分解
+        * join对应任务聚合
+    * 工具
+        * ForkJoinPool
+            * 生产者-消费者模型
+            * **任务窃取**当pool中的呃线程空闲了，会去窃取其他工作队列中的任务。***TODO 确认是一个等待池还是每个线程有一个等待池***
+        * ForkJoinTask
+            * 抽象实现类：RecursiveAction（compute()无返回值）
+            * 抽象实现类：RecursiveTask（compute()有返回值）
+        _以上两者的关系类似 ThreadPoolExecutor 和 Runnable的关系_
+
+> 总结
+* Fork/Join 并行计算框架的核心组件是 ForkJoinPool。ForkJoinPool 支持任务**窃取机制**，_能够让所有线程的工作量基本均衡，
+不会出现有的线程很忙，而有的线程很闲的状况，所以性能很好_。Java 1.8 提供的 Stream API 里面并行流也是以 ForkJoinPool 
+为基础的。不过需要你注意的是，默认情况下所有的并行流计算都共享一个 ForkJoinPool，
+这个共享的 ForkJoinPool 默认的线程数是 CPU 的核数；如果所有的并行流计算都是 CPU 密集型计算的话，完全没有问题，
+但是如果存在 I/O 密集型的并行流计算，那么很可能会因为一个很慢的 I/O 计算而拖慢整个系统的性能。
+**所以建议用不同的 ForkJoinPool 执行不同类型的计算任务。**
+    
+    
 
