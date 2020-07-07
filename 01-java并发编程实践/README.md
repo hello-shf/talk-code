@@ -1323,5 +1323,22 @@ Copy
 但是如果存在 I/O 密集型的并行流计算，那么很可能会因为一个很慢的 I/O 计算而拖慢整个系统的性能。
 **所以建议用不同的 ForkJoinPool 执行不同类型的计算任务。**
     
-    
+#### [26 | Fork/Join：单机版的MapReduce](https://time.geekbang.org/column/article/91569)
 
+> 笔记
+* 注意while(true)的问题
+  * 一般while(true)需要break条件，一般是超时时间，不然容易导致死循环
+  * while(true) & Lock和Condition里面的活锁问题
+* notifyAll和signalAll
+  * 一般使用All比notify和signal更安全
+* Semaphore 需要锁中锁
+  * Semaphore 允许多个线程访问一个临界区，这也是一把双刃剑，当多个线程进入临界区时，如果需要访问共享变量就会存在并发问题，所以必须加锁，也就是说 Semaphore 需要锁中锁。
+  * 个人理解，Semaphore不是一个锁，只是一个并发工具，所以遇到共享变量问题，依然是需要锁的
+* 锁的申请和释放要成对出现
+* 回调总要关心执行线程是谁
+  * 当看到回调函数的时候，一定问一问执行回调函数的线程是谁
+* 共享线程池：有福同享就要有难同当
+    * 对于I/O密集型和CPU密集型的线程池要做业务隔离
+* 线上问题定位的利器：线程栈 dump
+    * 善于利用JSP和jstack命令
+  
