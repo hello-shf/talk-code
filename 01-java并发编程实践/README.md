@@ -1323,7 +1323,7 @@ Copy
 但是如果存在 I/O 密集型的并行流计算，那么很可能会因为一个很慢的 I/O 计算而拖慢整个系统的性能。
 **所以建议用不同的 ForkJoinPool 执行不同类型的计算任务。**
     
-#### [26 | Fork/Join：单机版的MapReduce](https://time.geekbang.org/column/article/91569)
+#### [27 | 并发工具类模块热点问题答疑](https://time.geekbang.org/column/article/92849)
 
 > 笔记
 * 注意while(true)的问题
