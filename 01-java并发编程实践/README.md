@@ -1416,9 +1416,69 @@ Immutability 模式是最简单的解决并发问题的方法，建议当你试�
     * 当需要复制数组，只需要复制数组所在的连续空间即可，是一个时间复杂度为O(1)的操作。
     而链表是不连续的存储空间，所以复制链表意味着需要 按照链表的指针，遍历整个链表。这将是一个时间复杂度为O(n)的操作。
     
-    
-    
-    
-    
+#### [30 | 线程本地存储模式：没有共享，就没有伤害](https://time.geekbang.org/column/article/93745)
+
+> 笔记
+* 线程封闭
+    * 局部变量
+    * ThreadLocal
+* ThreadLocal源码
+    * 切记 ThreadLocalMap是Thread持有的
+    ![ThreadLocal](https://github.com/hello-shf/talk-code/blob/master/images/ThreadLocal.png?raw=true)
+```java
+class Thread {
+  //内部持有ThreadLocalMap
+  ThreadLocal.ThreadLocalMap 
+    threadLocals;
+}
+class ThreadLocal<T>{
+  public T get() {
+    //首先获取线程持有的
+    //ThreadLocalMap
+    ThreadLocalMap map = Thread.currentThread().threadLocals;
+    //在ThreadLocalMap中
+    //查找变量
+    Entry e = map.getEntry(this);
+    return e.value;  
+  }
+  static class ThreadLocalMap{
+    //内部是数组而不是Map
+    Entry[] table;
+    //根据ThreadLocal查找Entry
+    Entry getEntry(ThreadLocal key){
+      //省略查找逻辑
+    }
+    //Entry定义
+    static class Entry extends
+    WeakReference<ThreadLocal>{
+      Object value;
+    }
+  }
+}
+```
+
+* ThreadLocal 的内存泄漏问题
+    * 一个误区、不是说ThreadLocal一定存在内存泄漏，在一般场景中，Thread持有ThreadLocalMap，ThreadLocalMap以弱引用的方式持有ThreadLocal，当线程Thread被回收，意味着ThreadLocal一定会被回收。
+    * ThreadLocal的内存泄漏发生在配合线程池使用的场景中
+        * 在线程池中 线程存活时间很长，往往同应用程序是同生共死的，这就意味着 Thread 持有的 ThreadLocalMap 一直都不会被回收，再加上 ThreadLocalMap 的 Entry对 ThreadLocal的引用是弱引用（WeakReference）
+        * 所以 只要 ThreadLocal 结束了自己的生命周期 是可以被回收掉的。但是 Entry 中的value 却是被Entry强引用。所以即便 Value的生命周期结束了，value 也是无法被回收的（可达性分析算法），从而导致内存泄漏
+    * 解决方案-一般ThreadLocal配合线程池使用，需要使用try{}finally{}**手动释放资源**
+```java
+ExecutorService es;
+ThreadLocal tl;
+es.execute(()->{
+  //ThreadLocal增加变量
+  tl.set(obj);
+  try {
+    // 省略业务逻辑代码
+  }finally {
+    //手动清理ThreadLocal 
+    tl.remove();
+  }
+});
+```
+ > 总结 
+* Spring的 线程池管理 采用的就是 ThreadLocal ，每个线程可以针对性的修改自己的线程池。通过这个，可以写一个切面来切换数据源。
+* 线程本地存储模式本质上是一种**避免共享**的方案，由于没有共享，所以自然也就没有并发问题。
     
     
