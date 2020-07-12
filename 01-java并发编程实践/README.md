@@ -1501,3 +1501,99 @@ es.execute(()->{
             * 方案就是将消息对应的Condition**缓存起来** 这样的话就可以采用 **Key(msg.id) --> value(Condition)
         * 当 上下游 生产者和消费者都是集群化部署，如何解决？
             * 设计 MQ的topic = msg + ip 这样就能保证 同一个节点消费的**通知消息**一定是 本节点生产的**消息** 
+            
+#### [32 | Balking模式：再谈线程安全的单例模式](https://time.geekbang.org/column/article/94604)
+
+> 笔记
+* 多线程版本的if
+    * 场景：
+        * 类似语雀，编辑完了需要保存。
+            * 首先需要维护一个变量“changed”标识当前文档有没有被修改
+            * 然后一个定时任务 定时执行自动保存任务。
+            伪代码如下所示
+```java
+//自动存盘操作
+void autoSave(){
+  synchronized(this){//同步代码块保证 对changed的读和下面的写互斥
+    if (!changed) {
+      return;
+    }
+    changed = false;
+  }
+  //执行存盘操作
+  //省略且实现
+  this.execSave();
+}
+//编辑操作
+void edit(){
+  //省略编辑逻辑
+  ......
+  synchronized(this){
+    changed = true;
+  }
+}  
+```
+* 针对上面的场景，总结成为一个并发设计模式 - **Balking模式**
+    * **Balking 本质上是一种规范化的解决“多线程版本if”的方案**
+* **Balking 模式范式 -- 使用管程实现**
+```java
+boolean changed=false;
+//自动存盘操作
+void autoSave(){
+  synchronized(this){
+    if (!changed) {
+      return;
+    }
+    changed = false;
+  }
+  //执行存盘操作
+  //省略且实现
+  this.execSave();
+}
+//编辑操作
+void edit(){
+  //省略编辑逻辑
+  ......
+  change();
+}
+//改变状态
+void change(){
+  synchronized(this){
+    changed = true;
+  }
+}
+```
+* volatile 实现Balking模式
+    * 对于上面使用 _管程_ 实现的balking模式，是针对多线程版本的互斥方案。如果，在场景中不需要保证变量 _changed_ 的互斥，可以采用volatile来实现
+    * 切记 **使用 volatile 的前提是对原子性没有要求。**
+    仍然是上面的场景，如果对互斥要求不严格，表现在业务上，也就是如果多保存几次也无所谓，那么就可以去掉 管程 使用volatile来修饰_changed_变量。
+    * 重点 **volatile实现Balking** 的场景十分有限。只需要记住**使用 volatile 的前提是对原子性没有要求。** 即可
+
+> 课后思考  
+
+以下代码是为了保证 count只被计算一次。
+```java
+class Test{
+  volatile boolean inited = false;
+  int count = 0;
+  void init(){
+    if(inited){//1
+      return;
+    }
+    inited = true;//2
+    //计算count的值
+    count = calc();//3
+  }
+}  
+```
+* 以上代码是否存在线程安全性问题？
+* 当多个线程同时进入1处代码，也就意味着，这几个想成都能完整执行2,3处的代码。所以count就有可能被计算多次。
+
+> 总结
+* **只执行一次的场景**
+    * 场景：
+     SpringBoot 启动流程的源码中，refresh 方法只能被执行一次。
+    * 方案：保证代码绝对只执行一次最好的解决方案就是使用原子类AtomicBoolean。
+     AtomicBoolean.compareAndSet(false, true)。
+* Balking 模式的启发
+    * 之前实现的离线 license 可以通过 Balking 模式优化一般
